@@ -1,4 +1,4 @@
-use std::time::Instant;
+use std::{collections::VecDeque, time::Instant};
 
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -13,6 +13,9 @@ pub struct TemplateApp {
     #[serde(skip)]
     frametime: Instant,
 
+    #[serde(skip)]
+    framebuffer: VecDeque<usize>,
+
     #[serde(skip)] // This how you opt-out of serialization of a field
     value: f32,
 }
@@ -23,6 +26,7 @@ impl Default for TemplateApp {
             // Example stuff:
             starttime: Instant::now(),
             frametime: Instant::now(),
+            framebuffer: VecDeque::new(),
             label: "Hello World!".to_owned(),
             value: 2.7,
         }
@@ -75,6 +79,11 @@ impl eframe::App for TemplateApp {
             });
         });
 
+        self.framebuffer.push_back((1f64 / (Instant::now().saturating_duration_since(self.frametime).as_millis() as f64 / 1000f64)) as usize);
+        if self.framebuffer.len() > 10 {
+            self.framebuffer.pop_front();
+        }
+
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.heading("eframe template");
@@ -83,7 +92,7 @@ impl eframe::App for TemplateApp {
                 ui.label(format!("TimeSinceStart: {}", Instant::now().saturating_duration_since(self.starttime).as_millis()));
                 ui.label(format!("Frametime: {}", Instant::now().saturating_duration_since(self.frametime).as_millis()));
                 if Instant::now().saturating_duration_since(self.frametime).as_millis() > 0 {
-                    ui.label(format!("FPS: {}", 1f64 / (Instant::now().saturating_duration_since(self.frametime).as_millis() as f64 / 1000f64)));
+                    ui.label(format!("FPS: {}", self.framebuffer.iter().max().unwrap()));
                 }
                 ui.label("Write something: ");
                 ui.text_edit_singleline(&mut self.label);
