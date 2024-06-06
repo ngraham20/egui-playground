@@ -1,9 +1,17 @@
+use std::time::Instant;
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct TemplateApp {
     // Example stuff:
     label: String,
+
+    #[serde(skip)]
+    starttime: Instant,
+
+    #[serde(skip)]
+    frametime: Instant,
 
     #[serde(skip)] // This how you opt-out of serialization of a field
     value: f32,
@@ -13,6 +21,8 @@ impl Default for TemplateApp {
     fn default() -> Self {
         Self {
             // Example stuff:
+            starttime: Instant::now(),
+            frametime: Instant::now(),
             label: "Hello World!".to_owned(),
             value: 2.7,
         }
@@ -43,9 +53,9 @@ impl eframe::App for TemplateApp {
 
     /// Called each time the UI needs repainting, which may be many times per second.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        ctx.request_repaint();
         // Put your widgets into a `SidePanel`, `TopBottomPanel`, `CentralPanel`, `Window` or `Area`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
-
         egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
             // The top panel is often a good place for a menu bar:
 
@@ -70,9 +80,16 @@ impl eframe::App for TemplateApp {
             ui.heading("eframe template");
 
             ui.horizontal(|ui| {
+                ui.label(format!("TimeSinceStart: {}", Instant::now().saturating_duration_since(self.starttime).as_millis()));
+                ui.label(format!("Frametime: {}", Instant::now().saturating_duration_since(self.frametime).as_millis()));
+                if Instant::now().saturating_duration_since(self.frametime).as_millis() > 0 {
+                    ui.label(format!("FPS: {}", 1f64 / (Instant::now().saturating_duration_since(self.frametime).as_millis() as f64 / 1000f64)));
+                }
                 ui.label("Write something: ");
                 ui.text_edit_singleline(&mut self.label);
             });
+
+            self.frametime = Instant::now();
 
             ui.add(egui::Slider::new(&mut self.value, 0.0..=10.0).text("value"));
             if ui.button("Increment").clicked() {
